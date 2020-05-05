@@ -8,7 +8,7 @@ public class MonkeyTrees {
     private static final int MAX_POS = 30001;
 
     private float maxDistance;
-    private int nTrees, nodesCounter, edgesCounter;
+    private int nodesCounter, edgesCounter;
     private Map<Integer, Integer> nodes;
     private int[][] positions;
     private List<Integer>[] edges; //JUMPIES
@@ -16,13 +16,13 @@ public class MonkeyTrees {
 
     public MonkeyTrees(float maxDistance, int nTrees) {
         this.maxDistance = maxDistance;
-        this.nTrees = nTrees;
-        this.nodesCounter = 0;
+        this.nodesCounter = 1;
         this.edgesCounter = 0;
         this.nodes = new HashMap<>();
-        this.edges = this.buildArray((nTrees - 1) * 2);
+        this.nodes.put(-1, 0);
+        this.edges = this.buildArray(nTrees * nTrees);
         this.positions = new int[nTrees][2];
-        this.nodeEdges = this.buildArray(2); //TODO
+        this.nodeEdges = this.buildArray(2 * nTrees);
 
     }
 
@@ -47,26 +47,94 @@ public class MonkeyTrees {
         return distance < this.maxDistance;
     }
 
-    public void addTree(int x, int y, int nMonkeys, int durability){
-        int treeIndex = this.nodesCounter++;
+    private void creatOppositeArc(int edgeIndex){
+        this.edgesCounter++;
+        List<Integer> arc = this.edges[edgeIndex];
+        List<Integer> reverseArc = this.edges[edgeIndex + 1];
 
+        //TIME LIMIT EXCEEDED ALERT
+        reverseArc.add(arc.get(1));
+        reverseArc.add(arc.get(0));
+        reverseArc.add(0);
+
+        this.nodeEdges[arc.get(1)].add(edgeIndex + 1);
+    }
+
+    private void newSource(int treeIndex, int nMonkeys){
+        int edgeIndex = this.edgesCounter++;
+        List<Integer> list = this.edges[edgeIndex];
+
+        list.add(0);
+        list.add(treeIndex);
+        list.add(nMonkeys);
+
+        this.nodeEdges[0].add(edgeIndex);
+        
+        this.creatOppositeArc(edgeIndex);
+    }
+
+    private void splitTree(int treeIndex, int durability){
+        int edgeIndex = this.edgesCounter++;//arco que liga entrada a saida
+
+        List<Integer> list = this.edges[edgeIndex]; //lista de sucessores da entrada
+
+        //info do arco
+        list.add(treeIndex);
+        list.add(treeIndex + 1);
+        list.add(durability);
+
+        this.nodeEdges[treeIndex].add(edgeIndex);
+
+        this.creatOppositeArc(edgeIndex);
+    }
+
+    private void connectTrees(int treeIndex1, int treeIndex2){
+        //LIGAR 1 A 2
+        int edgeIndex = this.edgesCounter++;
+        List<Integer> list = this.edges[edgeIndex];
+
+        list.add(treeIndex1 + 1);
+        list.add(treeIndex2);
+        list.add(Integer.MAX_VALUE);
+
+        this.nodeEdges[treeIndex1 + 1].add(edgeIndex);
+
+        this.creatOppositeArc(edgeIndex);
+
+        //LIGAR 2 A 1
+        edgeIndex = this.edgesCounter++;
+        list = this.edges[edgeIndex];
+
+        list.add(treeIndex2 + 1);
+        list.add(treeIndex1);
+        list.add(Integer.MAX_VALUE);
+
+        this.nodeEdges[treeIndex2 + 1].add(edgeIndex);
+        
+        this.creatOppositeArc(edgeIndex);
+    }
+
+    public void addTree(int x, int y, int nMonkeys, int durability){
+        int treeIndex = this.nodesCounter;
+
+        //inc por 2 porque numeros pares sao nós de saida
+        this.nodesCounter+=2;
+
+        //Adicionar nó e adicionar posição de nó 
         this.nodes.put(MAX_POS * x + y, treeIndex);
         this.positions[treeIndex][0] = x;
         this.positions[treeIndex][1] = y;
 
+        this.splitTree(treeIndex, durability);
 
+        //Nova ligação a fonte
+        //Macacoides
+        if(nMonkeys > 0)
+            this.newSource(treeIndex, nMonkeys);
+        
         for(int dst = 0; dst < this.nodesCounter - 1; dst++){
-            if(this.reachable(treeIndex, dst)){
-                List<Integer> list = this.edges[this.edgesCounter++];
-                list.add(treeIndex);
-                list.add(dst);
-                list.add(nMonkeys);
-                list.add(durability);
-
-                //ENTAO E A BIFURCAÇÃO DOS NÓS? FODEU
-
-
-            }
+            if(this.reachable(treeIndex, dst))
+                this.connectTrees(treeIndex, dst);
         }
     }
 }
